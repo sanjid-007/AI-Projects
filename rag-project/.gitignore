@@ -1,0 +1,14 @@
+# rag-project/.gitignore
+
+# Secrets
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# Local vector DB
+chroma_db/
