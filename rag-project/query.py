@@ -16,7 +16,6 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 def find_relevant_chunks(question, n_results=3):
-    """Find the most relevant parts of the document for the question"""
     question_embedding = model.encode([question]).tolist()
     
     results = collection.query(
@@ -26,34 +25,27 @@ def find_relevant_chunks(question, n_results=3):
     
     return results['documents'][0]
 
-def answer_question(question):
-    """Get an answer from Claude using relevant document chunks"""
-  
+def answer_question(question, chat_history=[]):
     relevant_chunks = find_relevant_chunks(question)
-    
-    print("=== CHUNKS FOUND ===")
-    for i, chunk in enumerate(relevant_chunks):
-        print(f"Chunk {i+1}: {chunk[:200]}...")  # Print first 200 chars
-    print("====================")
     context = "\n\n".join(relevant_chunks)
-    
-   
-    prompt = f"""You are a document assistant. You MUST answer ONLY using the context below.
-Do NOT use any outside knowledge. Do NOT guess.
-If the answer is not explicitly in the context, say exactly: "I couldn't find that in the document."
+    system_prompt = f"""You are a document assistant. Answer ONLY using the context below.
+Do NOT use outside knowledge. If the answer isn't in the context, say "I couldn't find that in the document."
 
-CONTEXT FROM DOCUMENT:
-{context}
-
-QUESTION: {question}
-
-ANSWER (based strictly on the context above):"""
-    
+DOCUMENT CONTEXT:
+{context}"""
+    messages = [{"role": "system", "content": system_prompt}]
+    messages += chat_history 
+    messages.append({"role": "user", "content": question}) 
     response = groq_client.chat.completions.create(
-    model="llama-3.3-70b-versatile", 
-    messages=[{"role": "user", "content": prompt}],
-    max_tokens=1024
-)
-    return response.choices[0].message.content
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+        max_tokens=1024
+    )
+    
+    answer = response.choices[0].message.content
+    chat_history.append({"role": "user", "content": question})
+    chat_history.append({"role": "assistant", "content": answer})
+    
+    return answer, chat_history
 
 
